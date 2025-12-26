@@ -9,6 +9,35 @@ interface Obstacle {
   gapY: number;
 }
 
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+const DIFFICULTY_SETTINGS = {
+  easy: {
+    obstacleSpeed: 1.5,
+    obstacleInterval: 2500,
+    gapSize: 30,
+    label: 'Лёгкий',
+    color: 'from-green-400 to-emerald-500',
+    icon: '🌱'
+  },
+  medium: {
+    obstacleSpeed: 2,
+    obstacleInterval: 2000,
+    gapSize: 25,
+    label: 'Средний',
+    color: 'from-amber-400 to-orange-500',
+    icon: '⚡'
+  },
+  hard: {
+    obstacleSpeed: 2.8,
+    obstacleInterval: 1500,
+    gapSize: 20,
+    label: 'Сложный',
+    color: 'from-red-400 to-rose-600',
+    icon: '🔥'
+  }
+};
+
 const Index = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
@@ -18,6 +47,8 @@ const Index = () => {
   const [birdVelocity, setBirdVelocity] = useState(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  const [showDifficultySelect, setShowDifficultySelect] = useState(false);
   
   const gameLoopRef = useRef<number>();
   const obstacleTimerRef = useRef<number>();
@@ -58,13 +89,17 @@ const Index = () => {
     playSound(400, 0.1);
   };
 
-  const startGame = () => {
+  const startGame = (selectedDifficulty?: Difficulty) => {
+    if (selectedDifficulty) {
+      setDifficulty(selectedDifficulty);
+    }
     setGameStarted(true);
     setGameOver(false);
     setScore(0);
     setBirdY(50);
     setBirdVelocity(0);
     setObstacles([]);
+    setShowDifficultySelect(false);
     
     playSound(600, 0.2);
   };
@@ -76,6 +111,7 @@ const Index = () => {
     setBirdY(50);
     setBirdVelocity(0);
     setObstacles([]);
+    setShowDifficultySelect(false);
   };
 
   useEffect(() => {
@@ -109,8 +145,9 @@ const Index = () => {
       setBirdVelocity(prev => prev + 0.5);
       
       setObstacles(prev => {
+        const settings = DIFFICULTY_SETTINGS[difficulty];
         const newObstacles = prev
-          .map(obs => ({ ...obs, x: obs.x - 2 }))
+          .map(obs => ({ ...obs, x: obs.x - settings.obstacleSpeed }))
           .filter(obs => obs.x > -10);
         
         prev.forEach(obs => {
@@ -125,9 +162,10 @@ const Index = () => {
         const birdTop = birdY;
         const birdBottom = birdY + 8;
         
+        const settings = DIFFICULTY_SETTINGS[difficulty];
         newObstacles.forEach(obs => {
           if (obs.x < birdRight && obs.x + 8 > birdLeft) {
-            if (birdTop < obs.gapY || birdBottom > obs.gapY + 25) {
+            if (birdTop < obs.gapY || birdBottom > obs.gapY + settings.gapSize) {
               setGameOver(true);
               playSound(200, 0.3);
             }
@@ -141,11 +179,12 @@ const Index = () => {
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [gameStarted, gameOver, birdVelocity, birdY]);
+  }, [gameStarted, gameOver, birdVelocity, birdY, difficulty]);
 
   useEffect(() => {
     if (!gameStarted || gameOver) return;
 
+    const settings = DIFFICULTY_SETTINGS[difficulty];
     obstacleTimerRef.current = window.setInterval(() => {
       setObstacles(prev => [
         ...prev,
@@ -155,12 +194,12 @@ const Index = () => {
           gapY: Math.random() * 50 + 15
         }
       ]);
-    }, 2000);
+    }, settings.obstacleInterval);
 
     return () => {
       if (obstacleTimerRef.current) clearInterval(obstacleTimerRef.current);
     };
-  }, [gameStarted, gameOver]);
+  }, [gameStarted, gameOver, difficulty]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -199,32 +238,71 @@ const Index = () => {
 
         {!gameStarted && !gameOver && (
           <Card className="max-w-md mx-auto p-8 text-center bg-white/90 backdrop-blur-sm shadow-2xl">
-            <div className="mb-6">
-              <div className="text-6xl mb-4 animate-bounce-bird">🐦</div>
-              <h2 className="text-3xl font-bold text-blue-600 mb-2">Добро пожаловать!</h2>
-              <p className="text-gray-600 mb-4">
-                Помогите птичке пролететь через деревья
-              </p>
-            </div>
-            
-            <div className="space-y-4 mb-6">
-              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                <Icon name="MousePointer2" className="text-blue-600" />
-                <span className="text-sm text-gray-700">Кликайте или нажимайте пробел</span>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                <Icon name="Trophy" className="text-green-600" />
-                <span className="text-sm text-gray-700">Рекорд: {highScore}</span>
-              </div>
-            </div>
+            {!showDifficultySelect ? (
+              <>
+                <div className="mb-6">
+                  <div className="text-6xl mb-4 animate-bounce-bird">🐦</div>
+                  <h2 className="text-3xl font-bold text-blue-600 mb-2">Добро пожаловать!</h2>
+                  <p className="text-gray-600 mb-4">
+                    Помогите птичке пролететь через деревья
+                  </p>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                    <Icon name="MousePointer2" className="text-blue-600" />
+                    <span className="text-sm text-gray-700">Кликайте или нажимайте пробел</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                    <Icon name="Trophy" className="text-green-600" />
+                    <span className="text-sm text-gray-700">Рекорд: {highScore}</span>
+                  </div>
+                </div>
 
-            <Button
-              onClick={startGame}
-              size="lg"
-              className="w-full bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-bold text-xl shadow-lg"
-            >
-              Начать игру
-            </Button>
+                <Button
+                  onClick={() => setShowDifficultySelect(true)}
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-bold text-xl shadow-lg"
+                >
+                  Начать игру
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <Icon name="Target" size={48} className="text-blue-600 mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold text-blue-600 mb-2">Выберите уровень</h2>
+                  <p className="text-gray-600 text-sm">
+                    Чем выше сложность, тем больше очков
+                  </p>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  {(Object.keys(DIFFICULTY_SETTINGS) as Difficulty[]).map((diff) => {
+                    const settings = DIFFICULTY_SETTINGS[diff];
+                    return (
+                      <Button
+                        key={diff}
+                        onClick={() => startGame(diff)}
+                        size="lg"
+                        className={`w-full bg-gradient-to-r ${settings.color} hover:opacity-90 text-white font-bold text-lg shadow-lg transition-all hover:scale-105`}
+                      >
+                        <span className="mr-2 text-2xl">{settings.icon}</span>
+                        {settings.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  onClick={() => setShowDifficultySelect(false)}
+                  variant="ghost"
+                  className="text-gray-500"
+                >
+                  Назад
+                </Button>
+              </>
+            )}
           </Card>
         )}
 
@@ -268,7 +346,7 @@ const Index = () => {
                   <div
                     className="absolute w-full bg-gradient-to-t from-green-600 to-green-700 rounded-t-lg shadow-lg"
                     style={{
-                      height: `${100 - obs.gapY - 25}%`,
+                      height: `${100 - obs.gapY - DIFFICULTY_SETTINGS[difficulty].gapSize}%`,
                       bottom: 0
                     }}
                   >
